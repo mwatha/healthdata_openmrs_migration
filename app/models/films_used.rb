@@ -1,3 +1,6 @@
 class FilmsUsed < ActiveRecord::Base
-  set.table_name = 'FilmsUsed'
+  self.table_name = 'FilmsUsed'
+
+  belongs_to :radiology_study, :class_name => "RadiologyStudy", 
+    :foreign_key => :study_number
 end

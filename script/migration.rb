@@ -2,12 +2,12 @@
 
 
   def migrated_users
-    users = Clinician.all
+    users = Clinician.all(:limit => 1)
     count = users.length
     migrated_count = 0
 
     puts "Migrating #{count} users' record(s) ........."  
-    sleep(5)
+    sleep(3)
 
     (users || []).each do |user|
       password = user.try(:Clinician_ID) rescue nil
@@ -30,12 +30,12 @@
   end
 
   def migrated_patient_demographics
-    patients = MasterPatientRecord.all #(:limit => 100)
+    patients = MasterPatientRecord.where(:'Pat_ID' => 905891) #,:limit => 50)
     count = patients.length
     migrated_count = 0
 
     puts "Migrating #{count} patients' record(s) ........."  
-    sleep(5)
+    sleep(3)
 
     (patients || []).each do |pat|
       given_name = pat.try(:First_Name).capitalize rescue nil
@@ -87,6 +87,11 @@
   def get_creator(clinician_id)
     return 1 if clinician_id.blank?
     Users.where(:'secret_answer' => clinician_id).first.try(:user_id) || 1
+  end
+
+  def get_openmrs_patient(identifier)
+    PatientIdentifier.where('identifier = (?) OR identifier = (?)',
+      identifier.gsub('-',''),identifier).last.patient rescue nil
   end
 
   def birthdate_calculations(birth_year, birth_month, day_of_birth)
@@ -189,8 +194,43 @@
     a.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
     a.save
   end
+ 
+  def migrated_radiology_study_data
+    records = RadiologyStudy.where(:'Patient_Identifier' => '10-1905-891') 
+    count = records.length
+    migrated_count = 0
+
+    puts "Migrating #{count} record(s) ........."  
+    sleep(3)
+
+    (records || []).each do |record|
+      patient = get_openmrs_patient(record.try(:Patient_Identifier))
+      next if patient.blank?
+      study_number = record.try(:Study_Number)
+      study_datetime = (record.try(:Study_Date) + " " + record.try(:Study_Time))
+      study_datetime = study_datetime.to_time.strftime('%Y-%m-%d %H:%M:%S') rescue nil
+      study_datetime = Time.now().strftime('%Y-%m-%d %H:%M:%S') if study_datetime.blank?
+      clerk = get_creator(record.try(:Clerk))
+      examiner = get_creator(record.try(:Examiner))
+      exam_date = record.try(:Exam_Date).to_date rescue nil
+      notes = record.try(:Note)
+      referred_by = record.try(:Referred_By)
+      study_type = record.try(:Study_Type) || 'Other' 
+
+      (FilmsUsed.where(:'Study_Number' => study_number) || []).each do |film|
+        film_size = film.try(:FilmSize)
+        films_used = film.try(:FilmsUsed)
+        film_size = film.try(:FilmsWasted)
+        date_used = film.try(:DateUsed).to_date rescue nil
+        puts ">>>>>>>>>>>>>>>>>> #{film.try(:FilmSize)} ......... #{film.try(:DateUsed)}"
+      end
+
+
+    end
+
+
+  end
   
-  migrated_users
-
-
-  migrated_patient_demographics
+  #migrated_users
+  #migrated_patient_demographics
+  migrated_radiology_study_data
