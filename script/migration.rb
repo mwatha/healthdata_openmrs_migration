@@ -1,8 +1,27 @@
   require 'lib/bantu_soundex'
 
+  Examination_encounter = EncounterType.find_by_name('EXAMINATION')
+  Film_size_encounter = EncounterType.find_by_name('Film size')
+  Notes_encounter = EncounterType.find_by_name('NOTES')
+  Investigation_encounter = EncounterType.find_by_name('Investigation')
+  Exam_num_concept = ConceptName.find_by_name('Exam num')
+  Film_size_concept = ConceptName.find_by_name('Size')
+  Bad_concept = ConceptName.find_by_name('Bad')
+  Good_concept = ConceptName.find_by_name('Good')
+  Investigation_type_concept = ConceptName.find_by_name('Investigation type')
+  Ultrasound_concept = ConceptName.find_by_name('Ultrasound')
+  Xray_concept = ConceptName.find_by_name('Xray')
+  Other_concept = ConceptName.find_by_name('Other')
+  Order_type = OrderType.find_by_name('Radiology Study')
+  Pay_category = ConceptName.find_by_name('Pay category')
+  Yes_concept = ConceptName.find_by_name('Yes')
+  No_concept = ConceptName.find_by_name('No')
+  Receipt_number_concept = ConceptName.find_by_name('Receipt number')
+  Amount_concept = ConceptName.find_by_name('Amount')
+  Clinical_notes_concept = ConceptName.find_by_name('Clinical notes construct')
 
   def migrated_users
-    users = Clinician.all(:limit => 1)
+    users = Clinician.all(:limit => 700)
     count = users.length
     migrated_count = 0
 
@@ -30,7 +49,8 @@
   end
 
   def migrated_patient_demographics
-    patients = MasterPatientRecord.where(:'Pat_ID' => 905891) #,:limit => 50)
+    patients = MasterPatientRecord.all(:limit => 100)
+    #where(:'Pat_ID' => 905891) #,
     count = patients.length
     migrated_count = 0
 
@@ -196,7 +216,7 @@
   end
  
   def migrated_radiology_study_data
-    records = RadiologyStudy.where(:'Patient_Identifier' => '10-1905-891') 
+    records = RadiologyStudy.all #where('Patient_Identifier <> (?)','10-1905-891').limit(10000) 
     count = records.length
     migrated_count = 0
 
@@ -211,26 +231,191 @@
       study_datetime = study_datetime.to_time.strftime('%Y-%m-%d %H:%M:%S') rescue nil
       study_datetime = Time.now().strftime('%Y-%m-%d %H:%M:%S') if study_datetime.blank?
       clerk = get_creator(record.try(:Clerk))
-      examiner = get_creator(record.try(:Examiner))
+      creator = get_creator(record.try(:Examiner))
       exam_date = record.try(:Exam_Date).to_date rescue nil
       notes = record.try(:Note)
       referred_by = record.try(:Referred_By)
       study_type = record.try(:Study_Type) || 'Other' 
 
-      (FilmsUsed.where(:'Study_Number' => study_number) || []).each do |film|
-        film_size = film.try(:FilmSize)
-        films_used = film.try(:FilmsUsed)
-        film_size = film.try(:FilmsWasted)
-        date_used = film.try(:DateUsed).to_date rescue nil
-        puts ">>>>>>>>>>>>>>>>>> #{film.try(:FilmSize)} ......... #{film.try(:DateUsed)}"
+      paying = record.try(:Paying) || 'N'
+      receipt_num = record.try(:ReceiptNum)
+      amount = record.try(:KwachaAmount)
+
+
+      if study_type.upcase.match("U/S")
+        study_type = Ultrasound_concept.concept_id
+      elsif study_type.upcase.match("XRAY")
+        study_type = Xray_concept.concept_id
+      else
+        study_type = Other_concept.concept_id
       end
 
+      examination = Encounter.new()
+      examination.creator = creator
+      examination.encounter_type = Examination_encounter.id
+      examination.patient_id = patient.id
+      examination.creator = clerk
+      examination.location_id = 700
+      examination.provider_id = creator
+      examination.encounter_datetime = study_datetime
+      examination.date_created = Time.now()
+      examination.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      examination.save
 
+      order = Order.new()
+      order.accession_number = ('R' + (study_number.to_i.to_s.rjust(8,'0')))
+      order.encounter_id = examination.id
+      order.order_type_id = Order_type.id
+      order.concept_id = study_type
+      order.discontinued = 0 
+      order.orderer = clerk
+      order.creator = clerk
+      order.date_created = examination.encounter_datetime
+      order.voided = 0
+      order.patient_id = patient.id
+      order.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      order.save
+
+      paying = record.try(:Paying) || 'N'
+      receipt_num = record.try(:ReceiptNum)
+      amount = record.try(:KwachaAmount)
+      encounter = radiology_encounter('Investigation',creator,patient,study_datetime)
+      create_investigation_obs(encounter,amount,receipt_num,paying,order)
+
+      notes = record.try(:Note)  
+      notes_encounter = radiology_encounter('Notes',creator,patient,study_datetime) unless notes.blank?
+      create_notes_obs(notes_encounter,notes,order) unless notes_encounter.blank?
+
+      films_used = FilmsUsed.where(:'Study_Number' => study_number) 
+      films_used_encounter = radiology_encounter('Film Size',creator,patient,study_datetime) unless films_used.blank?
+
+      (films_used || []).each do |film|
+        film_size = film.try(:FilmSize)
+        films_used = film.try(:FilmsUsed).to_i rescue 1
+        film_wasted = film.try(:FilmsWasted).to_i rescue 0
+        date_used = film.try(:DateUsed).to_date rescue nil
+
+        create_films_used_obs(films_used_encounter,order,film_size,films_used,film_wasted,date_used)
+      end
+
+      puts "Migrated #{(migrated_count+=1)} of #{count} Radiology Study record(s) <<<"
     end
 
+  end
 
+  def create_films_used_obs(encounter,order,film_size,films_used,film_wasted,date_used)
+    #creating good films used obs
+    (1.upto(films_used)).each do |number|
+      obs = Observation.new()
+      obs.person_id = encounter.patient_id
+      obs.concept_id = Good_concept.id
+      obs.value_text = film_size
+      obs.creator = encounter.creator
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = encounter.id
+      obs.order_id = order.id
+      obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
+      obs.date_created = Time.now()
+      obs.creator = encounter.creator
+      obs.save
+    end  
+
+    #creating bad films used obs
+    (1.upto(film_wasted)).each do |number|
+      obs = Observation.new()
+      obs.person_id = encounter.patient_id
+      obs.concept_id = Bad_concept.id
+      obs.value_text = film_size
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = encounter.id
+      obs.order_id = order.id
+      obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
+      obs.date_created = Time.now()
+      obs.creator = encounter.creator
+      obs.save
+    end  
   end
   
+   
+  def radiology_encounter(encounter_type,creator,patient,encounter_datetime) 
+    type = Investigation_encounter if encounter_type == 'Investigation'
+    type = Film_size_encounter if encounter_type == 'Film Size'
+    type = Notes_encounter if encounter_type == 'Notes'
+
+    e = Encounter.new()
+    e.creator = creator
+    e.encounter_type = type.id
+    e.patient_id = patient.id
+    e.provider_id = creator
+    e.location_id = 700
+    e.encounter_datetime = encounter_datetime
+    e.date_created = Time.now()
+    e.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+    e.save
+    return e
+  end
+
+  def create_investigation_obs(encounter,amount,receipt_num,paying,order)
+    unless amount.blank?
+      obs = Observation.new()
+      obs.person_id = encounter.patient_id
+      obs.concept_id = Amount_concept.id
+      obs.creator = encounter.creator
+      obs.value_numeric = amount.to_f
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = encounter.id
+      obs.order_id = order.id
+      obs.obs_datetime = encounter.date_created
+      obs.date_created = Time.now()
+      obs.creator = encounter.creator
+      obs.save
+    end 
+
+    unless receipt_num.blank?
+      obs = Observation.new()
+      obs.person_id = encounter.patient_id
+      obs.concept_id = Receipt_number_concept.id
+      obs.value_text = receipt_num
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = encounter.id
+      obs.order_id = order.id
+      obs.obs_datetime = encounter.date_created
+      obs.date_created = Time.now()
+      obs.creator = encounter.creator
+      obs.save
+    end
+
+    unless paying.blank?
+      obs = Observation.new()
+      obs.person_id = encounter.patient_id
+      obs.concept_id = Pay_category.id
+      obs.value_coded = Yes_concept.id if paying == 'Y'
+      obs.value_coded = No_concept.id if paying == 'N'
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = encounter.id
+      obs.order_id = order.id
+      obs.obs_datetime = encounter.date_created
+      obs.date_created = Time.now()
+      obs.creator = encounter.creator
+      obs.save
+    end
+  end
+
+  def create_notes_obs(encounter,notes,order) 
+    obs = Observation.new()
+    obs.person_id = encounter.patient_id
+    obs.concept_id = Clinical_notes_concept.id
+    obs.value_text = notes
+    obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+    obs.encounter_id = encounter.id
+    obs.order_id = order.id
+    obs.creator = encounter.creator
+    obs.obs_datetime = encounter.date_created
+    obs.date_created = Time.now()
+    obs.save
+  end
+
+
   #migrated_users
   #migrated_patient_demographics
   migrated_radiology_study_data
