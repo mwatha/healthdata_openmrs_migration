@@ -55,6 +55,10 @@ EOF
 
   end
 
+  def log_error(patient_id,message)
+    `echo "#{patient_id}: #{message}" >> #{Rails.root.join('log','migration_error.txt')}`
+  end
+
   def migrated_patient_demographics
     patients = MasterPatientRecord.all(:limit => 100000)
     #where(:'Pat_ID' => 905891) #,
@@ -80,7 +84,12 @@ EOF
       month_of_birth = pat.try(:Month_Of_Birth)
       year_of_birth = pat.try(:Year_Of_Birth)
 
+      puts ">>>>>>>>>>>>>>>> #{pat.Pat_ID}"
       birthdate_estimated = birthdate_calculations(year_of_birth, month_of_birth, day_of_birth)
+      if birthdate_estimated.blank?
+        log_error(pat.Pat_ID,"Invalid birthdate: #{year_of_birth}, #{month_of_birth}, #{day_of_birth}")
+        next
+      end
 
       birthdate = birthdate_estimated[1]
       estimated = birthdate_estimated[0]
@@ -116,7 +125,7 @@ EOF
 
     Started at #{migration_start_time} - finished at #{Time.now().strftime('%Y-%m-%d %H:%M:%S' )} .....
 EOF
-
+  
   end
 
   def get_second_generation_id(site_id,patient_id)
@@ -150,7 +159,9 @@ EOF
       estimate = true
     else                                                        
       birthdate = "#{birth_year}-#{birth_month}-#{day_of_birth}".to_date                                   
-    end                                                                       
+    end rescue nil                                                                       
+                  
+    return [] if birthdate.blank?              
                                                                                 
     return [estimate,birthdate]
   end
@@ -444,6 +455,6 @@ EOF
   end
 
 
-  migrated_users
+  #migrated_users
   migrated_patient_demographics
   #migrated_radiology_study_data
