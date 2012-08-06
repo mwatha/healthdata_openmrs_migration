@@ -84,7 +84,6 @@ EOF
       month_of_birth = pat.try(:Month_Of_Birth)
       year_of_birth = pat.try(:Year_Of_Birth)
 
-      puts ">>>>>>>>>>>>>>>> #{pat.Pat_ID}"
       birthdate_estimated = birthdate_calculations(year_of_birth, month_of_birth, day_of_birth)
       if birthdate_estimated.blank?
         log_error(pat.Pat_ID,"Invalid birthdate: #{year_of_birth}, #{month_of_birth}, #{day_of_birth}")
@@ -455,6 +454,6 @@ EOF
   end
 
 
-  #migrated_users
+  migrated_users
   migrated_patient_demographics
   #migrated_radiology_study_data

@@ -3,23 +3,23 @@
 development:
   adapter: mysql2
   database: healthdata
-  username: root 
-  password: letusout
-  host: localhost
+  username: meduser 
+  password: root
+  host: 192.168.11.26
 
 openmrs_development:
   adapter: mysql2
-  database: bart2
-  username: root
-  password: letusout
-  host: localhost
+  database: openmrs_healthdata
+  username: meduser
+  password: root
+  host: 192.168.11.26
 
 openmrs_production:
   adapter: mysql2
   database: bart2
   username: root
   password: letusout
-  host: localhost
+  host: 192.168.11.26
 
 
 
