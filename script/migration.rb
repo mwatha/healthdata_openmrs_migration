@@ -24,6 +24,7 @@
     users = Clinician.all(:limit => 700)
     count = users.length
     migrated_count = 0
+    migration_start_time = Time.now().strftime('%Y-%m-%d %H:%M:%S')
 
     puts "Migrating #{count} users' record(s) ........."  
     sleep(3)
@@ -42,17 +43,31 @@
       person = new_person
       create_person_name(1, person.id,given_name,family_name)
       create_users(person.id, username, password)
-
+      
       puts "Migrated #{(migrated_count+=1)} of #{count} user(s) <<<"
     end
+
+    puts <<EOF
+
+
+    Started at #{migration_start_time} - finished at #{Time.now().strftime('%Y-%m-%d %H:%M:%S' )} .....
+EOF
 
   end
 
   def migrated_patient_demographics
-    patients = MasterPatientRecord.all(:limit => 100)
+    patients = MasterPatientRecord.all(:limit => 100000)
     #where(:'Pat_ID' => 905891) #,
     count = patients.length
     migrated_count = 0
+    migration_start_time = Time.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    puts <<EOF
+
+
+
+
+EOF
 
     puts "Migrating #{count} patients' record(s) ........."  
     sleep(3)
@@ -95,6 +110,12 @@
 
       puts "Migrated #{(migrated_count+=1)} of #{count} patient(s) <<<"
     end
+    
+    puts <<EOF
+
+
+    Started at #{migration_start_time} - finished at #{Time.now().strftime('%Y-%m-%d %H:%M:%S' )} .....
+EOF
 
   end
 
@@ -219,6 +240,13 @@
     records = RadiologyStudy.all #where('Patient_Identifier <> (?)','10-1905-891').limit(10000) 
     count = records.length
     migrated_count = 0
+
+    puts <<EOF
+
+
+
+
+EOF
 
     puts "Migrating #{count} record(s) ........."  
     sleep(3)
@@ -416,6 +444,6 @@
   end
 
 
-  #migrated_users
-  #migrated_patient_demographics
-  migrated_radiology_study_data
+  migrated_users
+  migrated_patient_demographics
+  #migrated_radiology_study_data
