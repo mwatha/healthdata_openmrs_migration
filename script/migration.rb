@@ -19,6 +19,7 @@
   Receipt_number_concept = ConceptName.find_by_name('Receipt number')
   Amount_concept = ConceptName.find_by_name('Amount')
   Clinical_notes_concept = ConceptName.find_by_name('Clinical notes construct')
+  Location_id = Location.find_by_name('Kamuzu Central Hospital').id
 
   def migrated_users
     users = Clinician.all(:limit => 700)
@@ -60,7 +61,7 @@ EOF
   end
 
   def migrated_patient_demographics
-    patients = MasterPatientRecord.all(:limit => 1000000)
+    patients = MasterPatientRecord.all #(:limit => 1000000)
     #where(:'Pat_ID' => 905891) #,
     count = patients.length
     migrated_count = 0
@@ -226,7 +227,7 @@ EOF
     i.creator = creator
     i.identifier_type = type.try(:patient_identifier_type_id)
     i.identifier = identifier
-    i.location_id = 700
+    i.location_id = Location_id
     i.date_created = Time.now()
     i.patient_id = patient_id
     i.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
@@ -293,7 +294,7 @@ EOF
       examination.encounter_type = Examination_encounter.id
       examination.patient_id = patient.id
       examination.creator = clerk
-      examination.location_id = 700
+      examination.location_id = Location_id
       examination.provider_id = creator
       examination.encounter_datetime = study_datetime
       examination.date_created = Time.now()
@@ -385,7 +386,7 @@ EOF
     e.encounter_type = type.id
     e.patient_id = patient.id
     e.provider_id = creator
-    e.location_id = 700
+    e.location_id = Location_id
     e.encounter_datetime = encounter_datetime
     e.date_created = Time.now()
     e.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
