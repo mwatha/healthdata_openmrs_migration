@@ -60,7 +60,7 @@ EOF
   end
 
   def migrated_patient_demographics
-    patients = MasterPatientRecord.all(:limit => 100000)
+    patients = MasterPatientRecord.all(:limit => 1000000)
     #where(:'Pat_ID' => 905891) #,
     count = patients.length
     migrated_count = 0
