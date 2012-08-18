@@ -2,12 +2,13 @@
 
 
   RADIOLOGY_EXAMINATION = EncounterType.find_by_name('RADIOLOGY EXAMINATION')
-  Radiology_order = ConceptName.find_by_name('Radiology')
+  Radiology_order = ConceptName.find_by_name('Radiology test')
   Ultrasound_concept = ConceptName.find_by_name('Ultrasound')
   Xray_concept = ConceptName.find_by_name('Xray')
-  Films_encounter = EncounterType.find_by_name('Films')
+  Films_encounter = EncounterType.find_by_name('Film')
   Notes_encounter = EncounterType.find_by_name('Notes')
   
+  Film_size_concept = ConceptName.find_by_name('Film size')
   Wasted_concept = ConceptName.find_by_name('Wasted film')
   Good_concept = ConceptName.find_by_name('Good film')
   Size_18x24 = ConceptName.find_by_name('18 x 24 cm')
@@ -58,9 +59,10 @@
   HSG = ConceptName.find_by_name('Hystero,Salpingogram') #Xray - HSG
   Lumbar = ConceptName.find_by_name('Lumbar') #Xray - L-spine: Note its under Spine
   Thoracic = ConceptName.find_by_name('Thoracic') #Xray - T-spine
+
+
   LeftAnkleJoint = ConceptName.find_by_name('Left Ankle joint') #Left Ankle joint: under Lower Limb
   LeftElbow = ConceptName.find_by_name('Left elbow joint') #Xray - Left Elbow: under Upper Limb
-
   LeftFemur = ConceptName.find_by_name('Left Femur') #Xray - Left Femur: under Lower Limb
   LeftFingers = ConceptName.find_by_name('Left Fingers') #Xray - Left Femur: under Upper Limb
   LeftFoot = ConceptName.find_by_name('Left Foot') #Xray - Left Foot: under Lower Limb
@@ -69,16 +71,11 @@
   LeftHumerus = ConceptName.find_by_name('Left Humerus') #Xray - Left Humerus: under Upper Limb
   LeftKneeJoint = ConceptName.find_by_name('Left Knee joint') #Xray - Left Knee: under Lower Limb
   LeftForearm = ConceptName.find_by_name('Left Forearm') #Xray - Left Forearm under Upper Limb
-  LeftShoulder = ConceptName.find_by_name('Left Elbow joint') #Xray - Left Shoulder under Upper Limb
+  LeftShoulder = ConceptName.find_by_name('Left Shoulder') #Xray - Left Shoulder under Upper Limb
   LeftLeg = ConceptName.find_by_name('Left Leg') #Xray - Left Tibia/Fibula under Lower Limb
   LeftToes = ConceptName.find_by_name('Left Toes') #Xray - Left Toes under Lower Limb
   LeftWrist = ConceptName.find_by_name('Left Wrist joint') #Xray - Left Wrist under Upper Limb
 
-
-  RightLeg = ConceptName.find_by_name('Right Leg') #Xray - Right Tibia/Fibula under Lower Limb
-  RightToes = ConceptName.find_by_name('Right Toes') #Xray - Right Toes under Lower Limb
-  RightWrist = ConceptName.find_by_name('Right Wrist joint') #Xray - right Wrist under Upper Limb
-  RightShoulder = ConceptName.find_by_name('Right Elbow joint') #Xray - Right Shoulder under Upper Limb
   RightAnkleJoint = ConceptName.find_by_name('Right Ankle joint') #Right Ankle joint: under Lower Limb
   RightElbow = ConceptName.find_by_name('Right elbow joint') #Xray - Right Elbow: under Upper Limb
   RightFemur = ConceptName.find_by_name('Right Femur') #Xray - Right Femur: under Lower Limb
@@ -89,10 +86,10 @@
   RightHumerus = ConceptName.find_by_name('Right Humerus') #Xray - Right Humerus: under Upper Limb
   RightKneeJoint = ConceptName.find_by_name('Right Knee joint') #Xray - Right Knee: under Lower Limb
   RightForearm = ConceptName.find_by_name('Right Forearm') #Xray - Right Forearm under Upper Limb
-  RightShoulder = ConceptName.find_by_name('Right Elbow joint') #Xray - Right Shoulder under Upper Limb
+  RightShoulder = ConceptName.find_by_name('Right Shoulder') #Xray - Right Shoulder under Upper Limb
   RightLeg = ConceptName.find_by_name('Right Leg') #Xray - Right Tibia/Fibula under Lower Limb
-  RightToes = ConceptName.find_by_name('Right Toes') #Xray - Left Toes under Lower Limb
-  LeftWrist = ConceptName.find_by_name('Right Wrist joint') #Xray - Left Wrist under Upper Limb
+  RightToes = ConceptName.find_by_name('Right Toes') #Xray - Right Toes under Lower Limb
+  RightWrist = ConceptName.find_by_name('Right Wrist joint') #Xray - right Wrist under Upper Limb
 
   Shoulder = ConceptName.find_by_name('Shoulder') #Xray - Right Shoulder under Upper Limb
   Skull = ConceptName.find_by_name('Skull') #Xray - Skull under Upper Limb
@@ -551,6 +548,115 @@ EOF
     PatientIdentifier.where('(identifier = ? OR identifier = ? OR identifier = ?) AND
       identifier_type = ?',first_generation,first_generation_without_dashes,
       second_generation,type.id).blank? != true 
+  end
+  
+  def radiology_old_concept(concept_name)
+    case concept_name.upcase
+      when 'ABDOMEN'
+        [Abdomen.id]
+      when 'CHEST'
+        [Chest.id]
+      when 'COLOUR DOPPLER ARTERIES'
+        [PeritheralArterialandVenousDuplex.id]
+      when 'ECHOCARDIOGRAPHY'
+        [Echocardiography.id] #U/S - Echocardiography
+      when 'HEAD'
+        [NeonatalBrain.id] #Head
+      when 'NECK'
+        [ThyroidandParathyroidGlands.id] #U/S - Neck
+      when 'OBSTETRICS'
+        [Obstetrics.id] #U/S - Obstetrics
+      when 'PELVIS'
+        [Pelvis.id] #U/S - Pelvis
+      when 'POWER DOPPLER'
+        [PowerDoppler.id] #U/S - Power Doppler
+      when 'SMALL PART'
+        [SmallPart.id] #U/S - Small part
+      when 'THORAX'
+        #----------- Thorax = ConceptName.find_by_name('Thorax') #U/S - Thorax
+        [Thorax.id] #U/S - Thorax
+      when 'C-SPINE'
+        [Spine.id,Cervical.id] #Xray - C-spine .. Note under concept spine
+      when 'CONTRAST GI STUDY'
+        [ContrastGIstudy.id] #Xray - Contrast GI study
+      when 'CONTRAST UT STUDY'
+        [ContrastUTstudy.id] #Xray - Contrast UT study
+      when 'FACIAL BONES'
+        [Skull.id,FacialBones.id] #Xray - Facial bones Note it is under concept Skull
+      when 'HSG'
+        [HSG.id] #Xray - HSG
+      when 'L-SPINE'
+        [Spine.id,Lumbar.id] #Xray - L-spine: Note its under Spine
+      when 'T-SPINE'
+        [Spine.id,Thoracic.id] #Xray - T-spine
+
+      when 'LEFT ANKLE JOINT'
+        [LowerLimb.id,LeftAnkleJoint.id] #Left Ankle joint: under Lower Limb
+      when 'LEFT ELBOW'
+        [UpperLimb.id,LeftElbow.id] #Xray - Left Elbow: under Upper Limb
+      when 'LEFT FEMUR'
+        [LowerLimb.id,LeftFemur.id] #Xray - Left Femur: under Lower Limb
+      when 'LEFT FINGERS'
+        [UpperLimb.id,LeftFingers.id] #Xray - LEFT FINGERS: under Upper Limb
+      when 'LEFT FOOT'
+        [LowerLimb.id,LeftFoot.id] #Xray - Left Foot: under Lower Limb
+      when 'LEFT HAND'
+        [UpperLimb.id,LeftHand.id] #Xray - Left Hand: under Upper Limb
+      when 'LEFT HIP JOINT'
+        [LowerLimb.id,LeftHipJoint.id] #Xray - LEFT HIP JOINT: under Lower Limb
+      when 'LEFT HUMERUS'
+        [UpperLimb.id,LeftHumerus.id] #Xray - Left Humerus: under Upper Limb
+      when 'LEFT KNEE'
+        [LowerLimb.id,LeftKneeJoint.id] #Xray - Left Knee: under Lower Limb
+      when 'LEFT FOREARM'
+        [UpperLimb.id,LeftForearm.id] #Xray - Left Forearm under Upper Limb
+      when 'LEFT SHOULDER'
+        [UpperLimb.id,LeftShoulder.id] #Xray - Left Shoulder under Upper Limb
+      when 'LEFT TIBIA/FIBULA'
+        [LowerLimb.id,LeftLeg.id] #Xray - Left Tibia/Fibula under Lower Limb
+      when 'LEFT TOES'
+        [LowerLimb.id,LeftToes.id] #Xray - Left Toes under Lower Limb
+      when 'LEFT WRIST'
+        [UpperLimb.id,LeftWrist.id] #Xray - Left Wrist under Upper Limb
+
+
+      when 'RIGHT ANKLE JOINT'
+        [LowerLimb.id,RightAnkleJoint.id] #RIGHT Ankle joint: under Lower Limb
+      when 'RIGHT ELBOW'
+        [UpperLimb.id,RightElbow.id] #Xray - RIGHT Elbow: under Upper Limb
+      when 'RIGHT FEMUR'
+        [LowerLimb.id,RightFemur.id] #Xray - RIGHT Femur: under Lower Limb
+      when 'RIGHT FINGERS'
+        [UpperLimb.id,RightFingers.id] #Xray - RIGHT FINGERS: under Upper Limb
+      when 'RIGHT FOOT'
+        [LowerLimb.id,RightFoot.id] #Xray - RIGHT Foot: under Lower Limb
+      when 'RIGHT HAND'
+        [UpperLimb.id,RightHand.id] #Xray - RIGHT Hand: under Upper Limb
+      when 'RIGHT HIP JOINT'
+        [LowerLimb.id,RightHipJoint.id] #Xray - RIGHT HIP JOINT: under Lower Limb
+      when 'RIGHT HUMERUS'
+        [UpperLimb,RightHumerus.id] #Xray - RIGHT Humerus: under Upper Limb
+      when 'RIGHT KNEE'
+        [LowerLimb.id,RightKneeJoint.id] #Xray - RIGHT Knee: under Lower Limb
+      when 'RIGHT FOREARM'
+        [UpperLimb.id,RightForearm.id] #Xray - RIGHT Forearm under Upper Limb
+      when 'RIGHT SHOULDER'
+        [UpperLimb.id,RightShoulder.id] #Xray - RIGHT Shoulder under Upper Limb
+      when 'RIGHT TIBIA/FIBULA'
+        [LowerLimb.id,RightLeg.id] #Xray - RIGHT Tibia/Fibula under Lower Limb
+      when 'RIGHT TOES'
+        [LowerLimb.id,RightToes.id] #Xray - RIGHT Toes under Lower Limb
+      when 'RIGHT WRIST'
+        [UpperLimb.id,RightWrist.id] #Xray - RIGHT Wrist under Upper Limb
+
+      when 'SHOULDER'
+        [Shoulder.id] #Xray - Shoulder under Upper Limb
+      when 'SKULL'
+        [Skull.id] #Xray - Skull under Upper Limb
+      when 'UPPER LIMB'
+        [UpperLimb.id] #Xray - Upper limb
+      when 'LOWER LIMB'
+        [LowerLimb.id] #Xray - Lower limb
   end
 
   #migrated_users
