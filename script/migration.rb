@@ -2,7 +2,7 @@
 
 
   Radiology_examination = EncounterType.find_by_name('RADIOLOGY EXAMINATION')
-  Radiology_order = ConceptName.find_by_name('Radiology test')
+  Radiology_order = OrderType.find_by_name('Radiology')
   Ultrasound_concept = ConceptName.find_by_name('Ultrasound')
   Xray_concept = ConceptName.find_by_name('Xray')
   Films_encounter = EncounterType.find_by_name('Film')
@@ -20,6 +20,9 @@
   Size_35x48 = ConceptName.find_by_name('35 x 48 cm')
 
   Other_concept = ConceptName.find_by_name('Other')
+  Radiology_examination_concept = ConceptName.find_by_name('Physical Examination')
+  Detailed_examination_concept = ConceptName.find_by_name('Detailed examination')
+  Radiology_test = ConceptName.find_by_name('Radiology test')
 
   Pay_category = ConceptName.find_by_name('Paying')
   Amount_concept = ConceptName.find_by_name('Payment amount')
@@ -99,14 +102,8 @@
   #....................................
 
 
-
-
-
-
-
-
   def migrated_users
-    users = Clinician.all(:limit => 700)
+    users = Clinician.all(:limit => 20)
     count = users.length
     migrated_count = 0
     migration_start_time = Time.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -145,8 +142,8 @@ EOF
   end
 
   def migrated_patient_demographics
-    #patients = MasterPatientRecord.all(:limit => 100)
-    patients = MasterPatientRecord.where('Date_Reg = "09-AUG-2012" OR Date_Reg = "08-AUG-2012"')
+    #patients = MasterPatientRecord.where('Pat_ID > 39803').limit(100)
+    patients = MasterPatientRecord.where(:'Pat_ID' => 468527)
     count = patients.length
     migrated_count = 0
     migration_start_time = Time.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -165,7 +162,7 @@ EOF
 
       national_id = get_second_generation_id(pat.try(:Site_ID),pat.try(:Pat_ID))
       legacy_patient_id = pat.try(:Legacy_Pat_Num)
-      next if migrated?(national_id,legacy_patient_id)
+      #next if migrated?(national_id,legacy_patient_id)
 
       given_name = pat.try(:First_Name).capitalize rescue nil
       family_name = pat.try(:Last_Name).capitalize rescue nil
@@ -230,7 +227,7 @@ EOF
 
   def get_openmrs_patient(identifier)
     PatientIdentifier.where('identifier = (?) OR identifier = (?)',
-      identifier.gsub('-',''),identifier).last.patient rescue nil
+      identifier.gsub('-',''),identifier).first.patient rescue nil
   end
 
   def birthdate_calculations(birth_year, birth_month, day_of_birth)
@@ -337,7 +334,7 @@ EOF
   end
  
   def migrated_radiology_study_data
-    records = RadiologyStudy.all #where('Patient_Identifier <> (?)','10-1905-891').limit(10000) 
+    records =  RadiologyStudy.where("Patient_Identifier IS NOT NULL").limit(100) 
     count = records.length
     migrated_count = 0
 
@@ -364,7 +361,7 @@ EOF
       notes = record.try(:Note)
       referred_from = record.try(:Referred_By)
       radiology_test_type = record.try(:Study_Type) || 'Other' 
-      radiology_examination = radiology_test_type
+      radiology_examination = record.try(:Study_Type)
 
       paying = record.try(:Paying) || 'N'
       receipt_num = record.try(:ReceiptNum)
@@ -373,15 +370,15 @@ EOF
 
       if radiology_test_type.upcase.match("U/S")
         radiology_test_type = Ultrasound_concept.concept_id
-        radiology_examination = radiology_examination.delete("U/S -").strip.upcase
+        radiology_examination = radiology_examination.sub("U/S -",'').strip.upcase
       elsif radiology_test_type.upcase.match("XRAY")
         radiology_test_type = Xray_concept.concept_id
-        radiology_examination = radiology_examination.delete("Xray -").strip.upcase
+        radiology_examination = radiology_examination.sub("Xray -",'').strip.upcase
       else
         radiology_test_type = Other_concept.concept_id
         radiology_examination = 'OTHER'
       end
-
+      
       examination = Encounter.new()
       examination.creator = creator
       examination.encounter_type = Radiology_examination.id
@@ -408,11 +405,21 @@ EOF
       order.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       order.save
 
+      obs = Observation.new()
+      obs.person_id = examination.patient_id
+      obs.concept_id = Radiology_test.concept_id
+      obs.creator = examination.creator
+      obs.value_coded = radiology_test_type
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = examination.id
+      obs.obs_datetime = examination.date_created
+      obs.date_created = Time.now()
+      obs.creator = examination.creator
+      obs.save
+
       paying = record.try(:Paying) || 'N'
       receipt_num = record.try(:ReceiptNum)
       amount = record.try(:KwachaAmount)
-      #encounter = radiology_encounter('Investigation',creator,patient,study_datetime)
-
       
       radiology_examination = radiology_old_concept(radiology_examination) 
       create_investigation_obs(examination,amount,receipt_num,paying,order,radiology_examination,referred_from)
@@ -441,40 +448,41 @@ EOF
   def get_film_size(film_size)
     case film_size
       when '13x18'
-        return Size_13x18 
+        return Size_13x18.concept_id 
       when '18x24'
-        return Size_18x24 
+        return Size_18x24.concept_id
       when '18x43'
-        return Size_18x43 
+        return Size_18x43.concept_id
       when '24x30'
-        return Size_24x30 
+        return Size_24x30.concept_id
       when '30x40'
-        return Size_30x40 
+        return Size_30x40.concept_id
       when '35x35'
-        return Size_35x35
+        return Size_35x35.concept_id
       when '35x43'
-        return Size_35x48
+        return Size_35x48.concept_id
+    end
   end
 
   def create_films_used_obs(encounter,order,film_size,films_used,film_wasted,date_used)
     films_obs = Observation.new()
     films_obs.person_id = encounter.patient_id
-    films_obs.value_coded = get_film_size(film_size).id
-    film_size.concept_id = Film_size_concept.id
-    film_size.creator = encounter.creator
-    film_size.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
-    film_size.encounter_id = encounter.id
-    film_size.order_id = order.id
-    film_size.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
-    film_size.date_created = Time.now()
-    film_size.creator = encounter.creator
-    film_size.save
+    films_obs.value_coded = get_film_size(film_size)
+    films_obs.concept_id = Film_size_concept.concept_id
+    films_obs.creator = encounter.creator
+    films_obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+    films_obs.encounter_id = encounter.id
+    films_obs.order_id = order.id
+    films_obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
+    films_obs.date_created = Time.now()
+    films_obs.creator = encounter.creator
+    films_obs.save
 
     obs = Observation.new()
     obs.person_id = encounter.patient_id
-    obs.concept_id = Wasted_concept.id
+    obs.concept_id = Wasted_concept.concept_id
     obs.value_numeric = film_wasted
-    obs.obs_group_id = film_size.id
+    obs.obs_group_id = films_obs.id
     obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
     obs.encounter_id = encounter.id
     obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
@@ -484,9 +492,9 @@ EOF
 
     obs = Observation.new()
     obs.person_id = encounter.patient_id
-    obs.concept_id = Good_concept.id
+    obs.concept_id = Good_concept.concept_id
     obs.value_numeric = films_used
-    obs.obs_group_id = film_size.id
+    obs.obs_group_id = films_obs.id
     obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
     obs.encounter_id = encounter.id
     obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
@@ -516,23 +524,49 @@ EOF
   def create_investigation_obs(encounter,amount,receipt_num,paying,order,examination,referred_from)
 
     unless examination.blank?
-      obs = Observation.new()
-      obs.person_id = encounter.patient_id
-      obs.concept_id = examination.first
-      obs.creator = encounter.creator
-      obs.value_coded = examination.last
-      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
-      obs.encounter_id = encounter.id
-      obs.obs_datetime = encounter.date_created
-      obs.date_created = Time.now()
-      obs.creator = encounter.creator
-      obs.save
+      if examination.length == 1
+        obs = Observation.new()
+        obs.person_id = encounter.patient_id
+        obs.concept_id = Radiology_examination_concept.concept_id
+        obs.creator = encounter.creator
+        obs.value_coded = examination.first
+        obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+        obs.encounter_id = encounter.id
+        obs.obs_datetime = encounter.date_created
+        obs.date_created = Time.now()
+        obs.creator = encounter.creator
+        obs.save
+      else
+        obs = Observation.new()
+        obs.person_id = encounter.patient_id
+        obs.concept_id = Radiology_examination_concept.concept_id
+        obs.creator = encounter.creator
+        obs.value_coded = examination.first
+        obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+        obs.encounter_id = encounter.id
+        obs.obs_datetime = encounter.date_created
+        obs.date_created = Time.now()
+        obs.creator = encounter.creator
+        obs.save
+
+        obs = Observation.new()
+        obs.person_id = encounter.patient_id
+        obs.concept_id = Detailed_examination_concept.id
+        obs.creator = encounter.creator
+        obs.value_coded = examination.last
+        obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+        obs.encounter_id = encounter.id
+        obs.obs_datetime = encounter.date_created
+        obs.date_created = Time.now()
+        obs.creator = encounter.creator
+        obs.save
+      end
     end
 
     unless referred_from.blank?
       obs = Observation.new()
       obs.person_id = encounter.patient_id
-      obs.concept_id = Referred_from_concept.id
+      obs.concept_id = Referred_from_concept.concept_id
       obs.creator = encounter.creator
       obs.value_text = referred_from
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
@@ -547,7 +581,7 @@ EOF
     unless amount.blank?
       obs = Observation.new()
       obs.person_id = encounter.patient_id
-      obs.concept_id = Amount_concept.id
+      obs.concept_id = Amount_concept.concept_id
       obs.creator = encounter.creator
       obs.value_numeric = amount.to_f
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
@@ -557,12 +591,12 @@ EOF
       obs.date_created = Time.now()
       obs.creator = encounter.creator
       obs.save
-    end 
+    end if paying == 'Y'
 
     unless receipt_num.blank?
       obs = Observation.new()
       obs.person_id = encounter.patient_id
-      obs.concept_id = Receipt_number_concept.id
+      obs.concept_id = Receipt_number_concept.concept_id
       obs.value_text = receipt_num
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
@@ -571,14 +605,14 @@ EOF
       obs.date_created = Time.now()
       obs.creator = encounter.creator
       obs.save
-    end
+    end if paying == 'Y'
 
     unless paying.blank?
       obs = Observation.new()
       obs.person_id = encounter.patient_id
-      obs.concept_id = Pay_category.id
-      obs.value_coded = Yes_concept.id if paying == 'Y'
-      obs.value_coded = No_concept.id if paying == 'N'
+      obs.concept_id = Pay_category.concept_id
+      obs.value_coded = Yes_concept.concept_id if paying == 'Y'
+      obs.value_coded = No_concept.concept_id if paying == 'N'
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
       #obs.order_id = order.id
@@ -591,8 +625,8 @@ EOF
     unless amount.blank?
       obs = Observation.new()
       obs.person_id = encounter.patient_id
-      obs.concept_id = Payment_type_concept.id
-      obs.value_coded = Cash_concept.id
+      obs.concept_id = Payment_type_concept.concept_id
+      obs.value_coded = Cash_concept.concept_id
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
       #obs.order_id = order.id
@@ -600,13 +634,13 @@ EOF
       obs.date_created = Time.now()
       obs.creator = encounter.creator
       obs.save
-    end
+    end if paying == 'Y'
   end
 
   def create_notes_obs(encounter,notes,order) 
     obs = Observation.new()
     obs.person_id = encounter.patient_id
-    obs.concept_id = Clinical_notes_concept.id
+    obs.concept_id = Clinical_notes_concept.concept_id
     obs.value_text = notes
     obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
     obs.encounter_id = encounter.id
@@ -628,110 +662,112 @@ EOF
   def radiology_old_concept(concept_name)
     case concept_name.upcase
       when 'ABDOMEN'
-        [Abdomen.id]
+        [Abdomen.concept_id]
       when 'CHEST'
-        [Chest.id]
+        [Chest.concept_id]
       when 'COLOUR DOPPLER ARTERIES'
-        [PeritheralArterialandVenousDuplex.id]
+        [PeritheralArterialandVenousDuplex.concept_id]
       when 'ECHOCARDIOGRAPHY'
-        [Echocardiography.id] #U/S - Echocardiography
+        [Echocardiography.concept_id] #U/S - Echocardiography
       when 'HEAD'
-        [NeonatalBrain.id] #Head
+        [NeonatalBrain.concept_id] #Head
       when 'NECK'
-        [ThyroidandParathyroidGlands.id] #U/S - Neck
+        [ThyroidandParathyroidGlands.concept_id] #U/S - Neck
       when 'OBSTETRICS'
-        [Obstetrics.id] #U/S - Obstetrics
+        [Obstetrics.concept_id] #U/S - Obstetrics
       when 'PELVIS'
-        [Pelvis.id] #U/S - Pelvis
+        [Pelvis.concept_id] #U/S - Pelvis
       when 'POWER DOPPLER'
-        [PowerDoppler.id] #U/S - Power Doppler
+        [PowerDoppler.concept_id] #U/S - Power Doppler
       when 'SMALL PART'
-        [SmallPart.id] #U/S - Small part
+        [SmallPart.concept_id] #U/S - Small part
       when 'THORAX'
         #----------- Thorax = ConceptName.find_by_name('Thorax') #U/S - Thorax
-        [Thorax.id] #U/S - Thorax
+        [Thorax.concept_id] #U/S - Thorax
       when 'C-SPINE'
-        [Spine.id,Cervical.id] #Xray - C-spine .. Note under concept spine
+        [Spine.concept_id,Cervical.concept_id] #Xray - C-spine .. Note under concept spine
       when 'CONTRAST GI STUDY'
-        [ContrastGIstudy.id] #Xray - Contrast GI study
+        [ContrastGIstudy.concept_id] #Xray - Contrast GI study
       when 'CONTRAST UT STUDY'
-        [ContrastUTstudy.id] #Xray - Contrast UT study
+        [ContrastUTstudy.concept_id] #Xray - Contrast UT study
       when 'FACIAL BONES'
-        [Skull.id,FacialBones.id] #Xray - Facial bones Note it is under concept Skull
+        [Skull.concept_id,FacialBones.concept_id] #Xray - Facial bones Note it is under concept Skull
       when 'HSG'
-        [HSG.id] #Xray - HSG
+        [HSG.concept_id] #Xray - HSG
       when 'L-SPINE'
-        [Spine.id,Lumbar.id] #Xray - L-spine: Note its under Spine
+        [Spine.concept_id,Lumbar.concept_id] #Xray - L-spine: Note its under Spine
       when 'T-SPINE'
-        [Spine.id,Thoracic.id] #Xray - T-spine
+        [Spine.concept_id,Thoracic.concept_id] #Xray - T-spine
       when 'LEFT ANKLE JOINT'
-        [LowerLimb.id,LeftAnkleJoint.id] #Left Ankle joint: under Lower Limb
+        [LowerLimb.concept_id,LeftAnkleJoint.concept_id] #Left Ankle joint: under Lower Limb
       when 'LEFT ELBOW'
-        [UpperLimb.id,LeftElbow.id] #Xray - Left Elbow: under Upper Limb
+        [UpperLimb.concept_id,LeftElbow.concept_id] #Xray - Left Elbow: under Upper Limb
       when 'LEFT FEMUR'
-        [LowerLimb.id,LeftFemur.id] #Xray - Left Femur: under Lower Limb
+        [LowerLimb.concept_id,LeftFemur.concept_id] #Xray - Left Femur: under Lower Limb
       when 'LEFT FINGERS'
-        [UpperLimb.id,LeftFingers.id] #Xray - LEFT FINGERS: under Upper Limb
+        [UpperLimb.concept_id,LeftFingers.concept_id] #Xray - LEFT FINGERS: under Upper Limb
       when 'LEFT FOOT'
-        [LowerLimb.id,LeftFoot.id] #Xray - Left Foot: under Lower Limb
+        [LowerLimb.concept_id,LeftFoot.concept_id] #Xray - Left Foot: under Lower Limb
       when 'LEFT HAND'
-        [UpperLimb.id,LeftHand.id] #Xray - Left Hand: under Upper Limb
+        [UpperLimb.concept_id,LeftHand.concept_id] #Xray - Left Hand: under Upper Limb
       when 'LEFT HIP JOINT'
-        [LowerLimb.id,LeftHipJoint.id] #Xray - LEFT HIP JOINT: under Lower Limb
+        [LowerLimb.concept_id,LeftHipJoint.concept_id] #Xray - LEFT HIP JOINT: under Lower Limb
       when 'LEFT HUMERUS'
-        [UpperLimb.id,LeftHumerus.id] #Xray - Left Humerus: under Upper Limb
+        [UpperLimb.concept_id,LeftHumerus.concept_id] #Xray - Left Humerus: under Upper Limb
       when 'LEFT KNEE'
-        [LowerLimb.id,LeftKneeJoint.id] #Xray - Left Knee: under Lower Limb
+        [LowerLimb.concept_id,LeftKneeJoint.concept_id] #Xray - Left Knee: under Lower Limb
       when 'LEFT FOREARM'
-        [UpperLimb.id,LeftForearm.id] #Xray - Left Forearm under Upper Limb
+        [UpperLimb.concept_id,LeftForearm.concept_id] #Xray - Left Forearm under Upper Limb
       when 'LEFT SHOULDER'
-        [UpperLimb.id,LeftShoulder.id] #Xray - Left Shoulder under Upper Limb
+        [UpperLimb.concept_id,LeftShoulder.concept_id] #Xray - Left Shoulder under Upper Limb
       when 'LEFT TIBIA/FIBULA'
-        [LowerLimb.id,LeftLeg.id] #Xray - Left Tibia/Fibula under Lower Limb
+        [LowerLimb.concept_id,LeftLeg.concept_id] #Xray - Left Tibia/Fibula under Lower Limb
       when 'LEFT TOES'
-        [LowerLimb.id,LeftToes.id] #Xray - Left Toes under Lower Limb
+        [LowerLimb.concept_id,LeftToes.concept_id] #Xray - Left Toes under Lower Limb
       when 'LEFT WRIST'
-        [UpperLimb.id,LeftWrist.id] #Xray - Left Wrist under Upper Limb
+        [UpperLimb.concept_id,LeftWrist.concept_id] #Xray - Left Wrist under Upper Limb
       when 'RIGHT ANKLE JOINT'
-        [LowerLimb.id,RightAnkleJoint.id] #RIGHT Ankle joint: under Lower Limb
+        [LowerLimb.concept_id,RightAnkleJoint.concept_id] #RIGHT Ankle joint: under Lower Limb
       when 'RIGHT ELBOW'
-        [UpperLimb.id,RightElbow.id] #Xray - RIGHT Elbow: under Upper Limb
+        [UpperLimb.concept_id,RightElbow.concept_id] #Xray - RIGHT Elbow: under Upper Limb
       when 'RIGHT FEMUR'
-        [LowerLimb.id,RightFemur.id] #Xray - RIGHT Femur: under Lower Limb
+        [LowerLimb.concept_id,RightFemur.concept_id] #Xray - RIGHT Femur: under Lower Limb
       when 'RIGHT FINGERS'
-        [UpperLimb.id,RightFingers.id] #Xray - RIGHT FINGERS: under Upper Limb
+        [UpperLimb.concept_id,RightFingers.concept_id] #Xray - RIGHT FINGERS: under Upper Limb
       when 'RIGHT FOOT'
-        [LowerLimb.id,RightFoot.id] #Xray - RIGHT Foot: under Lower Limb
+        [LowerLimb.concept_id,RightFoot.concept_id] #Xray - RIGHT Foot: under Lower Limb
       when 'RIGHT HAND'
-        [UpperLimb.id,RightHand.id] #Xray - RIGHT Hand: under Upper Limb
+        [UpperLimb.concept_id,RightHand.concept_id] #Xray - RIGHT Hand: under Upper Limb
       when 'RIGHT HIP JOINT'
-        [LowerLimb.id,RightHipJoint.id] #Xray - RIGHT HIP JOINT: under Lower Limb
+        [LowerLimb.concept_id,RightHipJoint.concept_id] #Xray - RIGHT HIP JOINT: under Lower Limb
       when 'RIGHT HUMERUS'
-        [UpperLimb,RightHumerus.id] #Xray - RIGHT Humerus: under Upper Limb
+        [UpperLimb,RightHumerus.concept_id] #Xray - RIGHT Humerus: under Upper Limb
       when 'RIGHT KNEE'
-        [LowerLimb.id,RightKneeJoint.id] #Xray - RIGHT Knee: under Lower Limb
+        [LowerLimb.concept_id,RightKneeJoint.concept_id] #Xray - RIGHT Knee: under Lower Limb
       when 'RIGHT FOREARM'
-        [UpperLimb.id,RightForearm.id] #Xray - RIGHT Forearm under Upper Limb
+        [UpperLimb.concept_id,RightForearm.concept_id] #Xray - RIGHT Forearm under Upper Limb
       when 'RIGHT SHOULDER'
-        [UpperLimb.id,RightShoulder.id] #Xray - RIGHT Shoulder under Upper Limb
+        [UpperLimb.concept_id,RightShoulder.concept_id] #Xray - RIGHT Shoulder under Upper Limb
       when 'RIGHT TIBIA/FIBULA'
-        [LowerLimb.id,RightLeg.id] #Xray - RIGHT Tibia/Fibula under Lower Limb
+        [LowerLimb.concept_id,RightLeg.concept_id] #Xray - RIGHT Tibia/Fibula under Lower Limb
       when 'RIGHT TOES'
-        [LowerLimb.id,RightToes.id] #Xray - RIGHT Toes under Lower Limb
+        [LowerLimb.concept_id,RightToes.concept_id] #Xray - RIGHT Toes under Lower Limb
       when 'RIGHT WRIST'
-        [UpperLimb.id,RightWrist.id] #Xray - RIGHT Wrist under Upper Limb
+        [UpperLimb.concept_id,RightWrist.concept_id] #Xray - RIGHT Wrist under Upper Limb
       when 'SHOULDER'
-        [Shoulder.id] #Xray - Shoulder under Upper Limb
+        [Shoulder.concept_id] #Xray - Shoulder under Upper Limb
       when 'SKULL'
-        [Skull.id] #Xray - Skull under Upper Limb
+        [Skull.concept_id] #Xray - Skull under Upper Limb
       when 'UPPER LIMB'
-        [UpperLimb.id] #Xray - Upper limb
+        [UpperLimb.concept_id] #Xray - Upper limb
       when 'LOWER LIMB'
-        [LowerLimb.id] #Xray - Lower limb
+        [LowerLimb.concept_id] #Xray - Lower limb
       else
-        [Other_concept.id]
+        [Other_concept.concept_id]
+    end
+
   end
 
   #migrated_users
-  migrated_patient_demographics
-  #migrated_radiology_study_data
+  #migrated_patient_demographics
+  migrated_radiology_study_data
