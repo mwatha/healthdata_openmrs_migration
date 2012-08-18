@@ -362,8 +362,9 @@ EOF
       creator = get_creator(record.try(:Examiner))
       exam_date = record.try(:Exam_Date).to_date rescue nil
       notes = record.try(:Note)
-      referred_by = record.try(:Referred_By)
+      referred_from = record.try(:Referred_By)
       radiology_test_type = record.try(:Study_Type) || 'Other' 
+      radiology_examination = radiology_test_type
 
       paying = record.try(:Paying) || 'N'
       receipt_num = record.try(:ReceiptNum)
@@ -372,10 +373,13 @@ EOF
 
       if radiology_test_type.upcase.match("U/S")
         radiology_test_type = Ultrasound_concept.concept_id
+        radiology_examination = radiology_examination.delete("U/S -").strip.upcase
       elsif radiology_test_type.upcase.match("XRAY")
         radiology_test_type = Xray_concept.concept_id
+        radiology_examination = radiology_examination.delete("Xray -").strip.upcase
       else
         radiology_test_type = Other_concept.concept_id
+        radiology_examination = 'OTHER'
       end
 
       examination = Encounter.new()
@@ -408,7 +412,10 @@ EOF
       receipt_num = record.try(:ReceiptNum)
       amount = record.try(:KwachaAmount)
       #encounter = radiology_encounter('Investigation',creator,patient,study_datetime)
-      create_investigation_obs(examination,amount,receipt_num,paying,order)
+
+      
+      radiology_examination = radiology_old_concept(radiology_examination) 
+      create_investigation_obs(examination,amount,receipt_num,paying,order,radiology_examination,referred_from)
 
       notes = record.try(:Note)  
       notes_encounter = radiology_encounter('Notes',creator,patient,study_datetime) unless notes.blank?
@@ -506,7 +513,37 @@ EOF
     return e
   end
 
-  def create_investigation_obs(encounter,amount,receipt_num,paying,order)
+  def create_investigation_obs(encounter,amount,receipt_num,paying,order,examination,referred_from)
+
+    unless examination.blank?
+      obs = Observation.new()
+      obs.person_id = encounter.patient_id
+      obs.concept_id = examination.first
+      obs.creator = encounter.creator
+      obs.value_coded = examination.last
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = encounter.id
+      obs.obs_datetime = encounter.date_created
+      obs.date_created = Time.now()
+      obs.creator = encounter.creator
+      obs.save
+    end
+
+    unless referred_from.blank?
+      obs = Observation.new()
+      obs.person_id = encounter.patient_id
+      obs.concept_id = Referred_from_concept.id
+      obs.creator = encounter.creator
+      obs.value_text = referred_from
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = encounter.id
+      obs.obs_datetime = encounter.date_created
+      obs.date_created = Time.now()
+      obs.creator = encounter.creator
+      obs.save
+    end
+
+
     unless amount.blank?
       obs = Observation.new()
       obs.person_id = encounter.patient_id
@@ -627,7 +664,6 @@ EOF
         [Spine.id,Lumbar.id] #Xray - L-spine: Note its under Spine
       when 'T-SPINE'
         [Spine.id,Thoracic.id] #Xray - T-spine
-
       when 'LEFT ANKLE JOINT'
         [LowerLimb.id,LeftAnkleJoint.id] #Left Ankle joint: under Lower Limb
       when 'LEFT ELBOW'
@@ -656,8 +692,6 @@ EOF
         [LowerLimb.id,LeftToes.id] #Xray - Left Toes under Lower Limb
       when 'LEFT WRIST'
         [UpperLimb.id,LeftWrist.id] #Xray - Left Wrist under Upper Limb
-
-
       when 'RIGHT ANKLE JOINT'
         [LowerLimb.id,RightAnkleJoint.id] #RIGHT Ankle joint: under Lower Limb
       when 'RIGHT ELBOW'
@@ -686,7 +720,6 @@ EOF
         [LowerLimb.id,RightToes.id] #Xray - RIGHT Toes under Lower Limb
       when 'RIGHT WRIST'
         [UpperLimb.id,RightWrist.id] #Xray - RIGHT Wrist under Upper Limb
-
       when 'SHOULDER'
         [Shoulder.id] #Xray - Shoulder under Upper Limb
       when 'SKULL'
@@ -695,6 +728,8 @@ EOF
         [UpperLimb.id] #Xray - Upper limb
       when 'LOWER LIMB'
         [LowerLimb.id] #Xray - Lower limb
+      else
+        [Other_concept.id]
   end
 
   #migrated_users
