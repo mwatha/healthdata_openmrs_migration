@@ -1,25 +1,111 @@
   require 'lib/bantu_soundex'
 
-  Examination_encounter = EncounterType.find_by_name('EXAMINATION')
-  Film_size_encounter = EncounterType.find_by_name('Film size')
-  Notes_encounter = EncounterType.find_by_name('NOTES')
-  Investigation_encounter = EncounterType.find_by_name('Investigation')
-  Exam_num_concept = ConceptName.find_by_name('Exam num')
-  Film_size_concept = ConceptName.find_by_name('Size')
-  Bad_concept = ConceptName.find_by_name('Bad')
-  Good_concept = ConceptName.find_by_name('Good')
-  Investigation_type_concept = ConceptName.find_by_name('Investigation type')
+
+  RADIOLOGY_EXAMINATION = EncounterType.find_by_name('RADIOLOGY EXAMINATION')
+  Radiology_order = ConceptName.find_by_name('Radiology')
   Ultrasound_concept = ConceptName.find_by_name('Ultrasound')
   Xray_concept = ConceptName.find_by_name('Xray')
+  Films_encounter = EncounterType.find_by_name('Films')
+  Notes_encounter = EncounterType.find_by_name('Notes')
+  
+  Wasted_concept = ConceptName.find_by_name('Wasted film')
+  Good_concept = ConceptName.find_by_name('Good film')
+  Size_18x24 = ConceptName.find_by_name('18 x 24 cm')
+  Size_18x43 = ConceptName.find_by_name('18 x 43 cm')
+  Size_24x30 = ConceptName.find_by_name('24 x 30 cm')
+  Size_30x40 = ConceptName.find_by_name('30 x 40 cm')
+  Size_35x35 = ConceptName.find_by_name('35 x 35 cm')
+  Size_35x48 = ConceptName.find_by_name('35 x 48 cm')
+
   Other_concept = ConceptName.find_by_name('Other')
-  Order_type = OrderType.find_by_name('Radiology Study')
-  Pay_category = ConceptName.find_by_name('Pay category')
+
+  Pay_category = ConceptName.find_by_name('Paying')
+  Amount_concept = ConceptName.find_by_name('Payment amount')
+  Payment_type_concept = ConceptName.find_by_name('Payment type')
+  Cash_concept = ConceptName.find_by_name('Cash')
+  Receipt_number_concept = ConceptName.find_by_name('Receipt number')
   Yes_concept = ConceptName.find_by_name('Yes')
   No_concept = ConceptName.find_by_name('No')
-  Receipt_number_concept = ConceptName.find_by_name('Receipt number')
-  Amount_concept = ConceptName.find_by_name('Amount')
-  Clinical_notes_concept = ConceptName.find_by_name('Clinical notes construct')
+
+  Referred_from_concept = ConceptName.find_by_name('Referred from')
+  Clinical_notes_concept = ConceptName.find_by_name('Findings')
+
   Location_id = Location.find_by_name('Kamuzu Central Hospital').id
+
+
+  #........ Radiology concepts
+
+
+  Abdomen = ConceptName.find_by_name('Abdomen') # Abdomen
+  Chest = ConceptName.find_by_name('Chest') #Chest
+  #U/S - Colour Doppler Arteries,U/S - Colour Doppler Veins
+  PeritheralArterialandVenousDuplex = ConceptName.find_by_name('Peritheral Arterial and Venous Duplex') 
+  Echocardiography = ConceptName.find_by_name('Echocardiography') #U/S - Echocardiography
+  NeonatalBrain = ConceptName.find_by_name('Neonatal Brain') #Head
+  ThyroidandParathyroidGlands = ConceptName.find_by_name('Thyroid and Parathyroid Glands') #U/S - Neck
+  Obstetrics = ConceptName.find_by_name('Obstetrics, Fetal') #U/S - Obstetrics
+  Pelvis = ConceptName.find_by_name('Female Pelvis, Gynaecology') #U/S - Pelvis
+  PowerDoppler = ConceptName.find_by_name('Peritheral Arterial and Venous Duplex') #U/S - Power Doppler
+  SmallPart = ConceptName.find_by_name('Prostate Gland, Scrotum and Penis') #U/S - Small part
+
+  #----------- Thorax = ConceptName.find_by_name('Thorax') #U/S - Thorax
+  Thorax = ConceptName.find_by_name('Unknown') #U/S - Thorax
+
+  Cervical = ConceptName.find_by_name('Cervical') #Xray - C-spine .. Note under concept spine
+  ContrastGIstudy = ConceptName.find_by_name('Contrast GI studies') #Xray - Contrast GI study
+  ContrastUTstudy = ConceptName.find_by_name('Contrast UT studies') #Xray - Contrast UT study
+  FacialBones = ConceptName.find_by_name('Facial bones') #Xray - Facial bones Note it is under concept Skull
+  HSG = ConceptName.find_by_name('Hystero,Salpingogram') #Xray - HSG
+  Lumbar = ConceptName.find_by_name('Lumbar') #Xray - L-spine: Note its under Spine
+  Thoracic = ConceptName.find_by_name('Thoracic') #Xray - T-spine
+  LeftAnkleJoint = ConceptName.find_by_name('Left Ankle joint') #Left Ankle joint: under Lower Limb
+  LeftElbow = ConceptName.find_by_name('Left elbow joint') #Xray - Left Elbow: under Upper Limb
+
+  LeftFemur = ConceptName.find_by_name('Left Femur') #Xray - Left Femur: under Lower Limb
+  LeftFingers = ConceptName.find_by_name('Left Fingers') #Xray - Left Femur: under Upper Limb
+  LeftFoot = ConceptName.find_by_name('Left Foot') #Xray - Left Foot: under Lower Limb
+  LeftHand = ConceptName.find_by_name('Left Hand') #Xray - Left Hand: under Upper Limb
+  LeftHipJoint = ConceptName.find_by_name('Left Hip joint') #Xray - Left Femur: under Lower Limb
+  LeftHumerus = ConceptName.find_by_name('Left Humerus') #Xray - Left Humerus: under Upper Limb
+  LeftKneeJoint = ConceptName.find_by_name('Left Knee joint') #Xray - Left Knee: under Lower Limb
+  LeftForearm = ConceptName.find_by_name('Left Forearm') #Xray - Left Forearm under Upper Limb
+  LeftShoulder = ConceptName.find_by_name('Left Elbow joint') #Xray - Left Shoulder under Upper Limb
+  LeftLeg = ConceptName.find_by_name('Left Leg') #Xray - Left Tibia/Fibula under Lower Limb
+  LeftToes = ConceptName.find_by_name('Left Toes') #Xray - Left Toes under Lower Limb
+  LeftWrist = ConceptName.find_by_name('Left Wrist joint') #Xray - Left Wrist under Upper Limb
+
+
+  RightLeg = ConceptName.find_by_name('Right Leg') #Xray - Right Tibia/Fibula under Lower Limb
+  RightToes = ConceptName.find_by_name('Right Toes') #Xray - Right Toes under Lower Limb
+  RightWrist = ConceptName.find_by_name('Right Wrist joint') #Xray - right Wrist under Upper Limb
+  RightShoulder = ConceptName.find_by_name('Right Elbow joint') #Xray - Right Shoulder under Upper Limb
+  RightAnkleJoint = ConceptName.find_by_name('Right Ankle joint') #Right Ankle joint: under Lower Limb
+  RightElbow = ConceptName.find_by_name('Right elbow joint') #Xray - Right Elbow: under Upper Limb
+  RightFemur = ConceptName.find_by_name('Right Femur') #Xray - Right Femur: under Lower Limb
+  RightFingers = ConceptName.find_by_name('Right Fingers') #Xray - Right Femur: under Upper Limb
+  RightFoot = ConceptName.find_by_name('Right Foot') #Xray - Right Foot: under Lower Limb
+  RightHand = ConceptName.find_by_name('Right Hand') #Xray - Right Hand: under Upper Limb
+  RightHipJoint = ConceptName.find_by_name('Right Hip joint') #Xray - Right Femur: under Lower Limb
+  RightHumerus = ConceptName.find_by_name('Right Humerus') #Xray - Right Humerus: under Upper Limb
+  RightKneeJoint = ConceptName.find_by_name('Right Knee joint') #Xray - Right Knee: under Lower Limb
+  RightForearm = ConceptName.find_by_name('Right Forearm') #Xray - Right Forearm under Upper Limb
+  RightShoulder = ConceptName.find_by_name('Right Elbow joint') #Xray - Right Shoulder under Upper Limb
+  RightLeg = ConceptName.find_by_name('Right Leg') #Xray - Right Tibia/Fibula under Lower Limb
+  RightToes = ConceptName.find_by_name('Right Toes') #Xray - Left Toes under Lower Limb
+  LeftWrist = ConceptName.find_by_name('Right Wrist joint') #Xray - Left Wrist under Upper Limb
+
+  Shoulder = ConceptName.find_by_name('Shoulder') #Xray - Right Shoulder under Upper Limb
+  Skull = ConceptName.find_by_name('Skull') #Xray - Skull under Upper Limb
+  UpperLimb = ConceptName.find_by_name('Upper Limb') #Xray - Upper limb
+  LowerLimb = ConceptName.find_by_name('Lower Limb') #Xray - Lower limb
+  #....................................
+
+
+
+
+
+
+
 
   def migrated_users
     users = Clinician.all(:limit => 700)
@@ -61,8 +147,8 @@ EOF
   end
 
   def migrated_patient_demographics
-    patients = MasterPatientRecord.all #(:limit => 1000000)
-    #where(:'Pat_ID' => 905891) #,
+    #patients = MasterPatientRecord.all(:limit => 100)
+    patients = MasterPatientRecord.where('Date_Reg = "09-AUG-2012" OR Date_Reg = "08-AUG-2012"')
     count = patients.length
     migrated_count = 0
     migration_start_time = Time.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -78,6 +164,11 @@ EOF
     sleep(3)
 
     (patients || []).each do |pat|
+
+      national_id = get_second_generation_id(pat.try(:Site_ID),pat.try(:Pat_ID))
+      legacy_patient_id = pat.try(:Legacy_Pat_Num)
+      next if migrated?(national_id,legacy_patient_id)
+
       given_name = pat.try(:First_Name).capitalize rescue nil
       family_name = pat.try(:Last_Name).capitalize rescue nil
       gender = pat.try(:Sex)
@@ -454,7 +545,14 @@ EOF
     obs.save
   end
 
+  def migrated?(first_generation,second_generation)
+    type = PatientIdentifierType.where(:'name' => 'National ID').first
+    first_generation_without_dashes = first_generation.gsub('-','') unless first_generation.blank?
+    PatientIdentifier.where('(identifier = ? OR identifier = ? OR identifier = ?) AND
+      identifier_type = ?',first_generation,first_generation_without_dashes,
+      second_generation,type.id).blank? != true 
+  end
 
-  migrated_users
+  #migrated_users
   migrated_patient_demographics
   #migrated_radiology_study_data

@@ -3,30 +3,30 @@
 production:
   adapter: mysql2
   database: healthdata
-  username: meduser 
-  password: root
-  host: 192.168.11.26
+  username: root 
+  password: letusout
+  host: localhost
 
 development:
   adapter: mysql2
   database: healthdata
-  username: meduser 
-  password: root
-  host: 192.168.11.26
+  username: root 
+  password: letusout
+  host: localhost
 
 openmrs_production:
   adapter: mysql2
-  database: openmrs_healthdata
-  username: meduser 
-  password: root
-  host: 192.168.11.26
+  database: bart2
+  username: root
+  password: letusout
+  host: localhost
 
 openmrs_development:
   adapter: mysql2
-  database: openmrs_healthdata
-  username: meduser
-  password: root
-  host: 192.168.11.26
+  database: bart2
+  username: root
+  password: letusout
+  host: localhost
 
 
 # Warning: The database defined as "test" will be erased and
