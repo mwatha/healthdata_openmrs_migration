@@ -1,7 +1,7 @@
   require 'lib/bantu_soundex'
 
 
-  RADIOLOGY_EXAMINATION = EncounterType.find_by_name('RADIOLOGY EXAMINATION')
+  Radiology_examination = EncounterType.find_by_name('RADIOLOGY EXAMINATION')
   Radiology_order = ConceptName.find_by_name('Radiology test')
   Ultrasound_concept = ConceptName.find_by_name('Ultrasound')
   Xray_concept = ConceptName.find_by_name('Xray')
@@ -11,6 +11,7 @@
   Film_size_concept = ConceptName.find_by_name('Film size')
   Wasted_concept = ConceptName.find_by_name('Wasted film')
   Good_concept = ConceptName.find_by_name('Good film')
+  Size_13x18 = ConceptName.find_by_name('13 x 18 cm')
   Size_18x24 = ConceptName.find_by_name('18 x 24 cm')
   Size_18x43 = ConceptName.find_by_name('18 x 43 cm')
   Size_24x30 = ConceptName.find_by_name('24 x 30 cm')
@@ -362,24 +363,24 @@ EOF
       exam_date = record.try(:Exam_Date).to_date rescue nil
       notes = record.try(:Note)
       referred_by = record.try(:Referred_By)
-      study_type = record.try(:Study_Type) || 'Other' 
+      radiology_test_type = record.try(:Study_Type) || 'Other' 
 
       paying = record.try(:Paying) || 'N'
       receipt_num = record.try(:ReceiptNum)
       amount = record.try(:KwachaAmount)
 
 
-      if study_type.upcase.match("U/S")
-        study_type = Ultrasound_concept.concept_id
-      elsif study_type.upcase.match("XRAY")
-        study_type = Xray_concept.concept_id
+      if radiology_test_type.upcase.match("U/S")
+        radiology_test_type = Ultrasound_concept.concept_id
+      elsif radiology_test_type.upcase.match("XRAY")
+        radiology_test_type = Xray_concept.concept_id
       else
-        study_type = Other_concept.concept_id
+        radiology_test_type = Other_concept.concept_id
       end
 
       examination = Encounter.new()
       examination.creator = creator
-      examination.encounter_type = Examination_encounter.id
+      examination.encounter_type = Radiology_examination.id
       examination.patient_id = patient.id
       examination.creator = clerk
       examination.location_id = Location_id
@@ -392,8 +393,8 @@ EOF
       order = Order.new()
       order.accession_number = ('R' + (study_number.to_i.to_s.rjust(8,'0')))
       order.encounter_id = examination.id
-      order.order_type_id = Order_type.id
-      order.concept_id = study_type
+      order.order_type_id = Radiology_order.id
+      order.concept_id = radiology_test_type
       order.discontinued = 0 
       order.orderer = clerk
       order.creator = clerk
@@ -406,15 +407,15 @@ EOF
       paying = record.try(:Paying) || 'N'
       receipt_num = record.try(:ReceiptNum)
       amount = record.try(:KwachaAmount)
-      encounter = radiology_encounter('Investigation',creator,patient,study_datetime)
-      create_investigation_obs(encounter,amount,receipt_num,paying,order)
+      #encounter = radiology_encounter('Investigation',creator,patient,study_datetime)
+      create_investigation_obs(examination,amount,receipt_num,paying,order)
 
       notes = record.try(:Note)  
       notes_encounter = radiology_encounter('Notes',creator,patient,study_datetime) unless notes.blank?
       create_notes_obs(notes_encounter,notes,order) unless notes_encounter.blank?
 
       films_used = FilmsUsed.where(:'Study_Number' => study_number) 
-      films_used_encounter = radiology_encounter('Film Size',creator,patient,study_datetime) unless films_used.blank?
+      films_used_encounter = radiology_encounter('Films',creator,patient,study_datetime) unless films_used.blank?
 
       (films_used || []).each do |film|
         film_size = film.try(:FilmSize)
@@ -430,43 +431,66 @@ EOF
 
   end
 
-  def create_films_used_obs(encounter,order,film_size,films_used,film_wasted,date_used)
-    #creating good films used obs
-    (1.upto(films_used)).each do |number|
-      obs = Observation.new()
-      obs.person_id = encounter.patient_id
-      obs.concept_id = Good_concept.id
-      obs.value_text = film_size
-      obs.creator = encounter.creator
-      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
-      obs.encounter_id = encounter.id
-      obs.order_id = order.id
-      obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
-      obs.date_created = Time.now()
-      obs.creator = encounter.creator
-      obs.save
-    end  
+  def get_film_size(film_size)
+    case film_size
+      when '13x18'
+        return Size_13x18 
+      when '18x24'
+        return Size_18x24 
+      when '18x43'
+        return Size_18x43 
+      when '24x30'
+        return Size_24x30 
+      when '30x40'
+        return Size_30x40 
+      when '35x35'
+        return Size_35x35
+      when '35x43'
+        return Size_35x48
+  end
 
-    #creating bad films used obs
-    (1.upto(film_wasted)).each do |number|
-      obs = Observation.new()
-      obs.person_id = encounter.patient_id
-      obs.concept_id = Bad_concept.id
-      obs.value_text = film_size
-      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
-      obs.encounter_id = encounter.id
-      obs.order_id = order.id
-      obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
-      obs.date_created = Time.now()
-      obs.creator = encounter.creator
-      obs.save
-    end  
+  def create_films_used_obs(encounter,order,film_size,films_used,film_wasted,date_used)
+    films_obs = Observation.new()
+    films_obs.person_id = encounter.patient_id
+    films_obs.value_coded = get_film_size(film_size).id
+    film_size.concept_id = Film_size_concept.id
+    film_size.creator = encounter.creator
+    film_size.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+    film_size.encounter_id = encounter.id
+    film_size.order_id = order.id
+    film_size.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
+    film_size.date_created = Time.now()
+    film_size.creator = encounter.creator
+    film_size.save
+
+    obs = Observation.new()
+    obs.person_id = encounter.patient_id
+    obs.concept_id = Wasted_concept.id
+    obs.value_numeric = film_wasted
+    obs.obs_group_id = film_size.id
+    obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+    obs.encounter_id = encounter.id
+    obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
+    obs.date_created = Time.now()
+    obs.creator = encounter.creator
+    obs.save
+
+    obs = Observation.new()
+    obs.person_id = encounter.patient_id
+    obs.concept_id = Good_concept.id
+    obs.value_numeric = films_used
+    obs.obs_group_id = film_size.id
+    obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+    obs.encounter_id = encounter.id
+    obs.obs_datetime = date_used.to_date.strftime('%Y-%m-%d 00:00:00') rescue encounter.date_created
+    obs.date_created = Time.now()
+    obs.creator = encounter.creator
+    obs.save
   end
   
    
   def radiology_encounter(encounter_type,creator,patient,encounter_datetime) 
-    type = Investigation_encounter if encounter_type == 'Investigation'
-    type = Film_size_encounter if encounter_type == 'Film Size'
+    type = Films_encounter if encounter_type == 'Films'
     type = Notes_encounter if encounter_type == 'Notes'
 
     e = Encounter.new()
@@ -491,7 +515,7 @@ EOF
       obs.value_numeric = amount.to_f
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
-      obs.order_id = order.id
+      #obs.order_id = order.id
       obs.obs_datetime = encounter.date_created
       obs.date_created = Time.now()
       obs.creator = encounter.creator
@@ -505,7 +529,7 @@ EOF
       obs.value_text = receipt_num
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
-      obs.order_id = order.id
+      #obs.order_id = order.id
       obs.obs_datetime = encounter.date_created
       obs.date_created = Time.now()
       obs.creator = encounter.creator
@@ -520,7 +544,21 @@ EOF
       obs.value_coded = No_concept.id if paying == 'N'
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
-      obs.order_id = order.id
+      #obs.order_id = order.id
+      obs.obs_datetime = encounter.date_created
+      obs.date_created = Time.now()
+      obs.creator = encounter.creator
+      obs.save
+    end
+
+    unless amount.blank?
+      obs = Observation.new()
+      obs.person_id = encounter.patient_id
+      obs.concept_id = Payment_type_concept.id
+      obs.value_coded = Cash_concept.id
+      obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
+      obs.encounter_id = encounter.id
+      #obs.order_id = order.id
       obs.obs_datetime = encounter.date_created
       obs.date_created = Time.now()
       obs.creator = encounter.creator
