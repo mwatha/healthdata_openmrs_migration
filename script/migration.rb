@@ -44,13 +44,13 @@
   Abdomen = ConceptName.find_by_name('Abdomen') # Abdomen
   Chest = ConceptName.find_by_name('Chest') #Chest
   #U/S - Colour Doppler Arteries,U/S - Colour Doppler Veins
-  PeritheralArterialandVenousDuplex = ConceptName.find_by_name('Peritheral Arterial and Venous Duplex') 
+  PeritheralArterialandVenousDuplex = ConceptName.find_by_name('Peripheral arterial and venous duplex') #U/S - Power Doppler
   Echocardiography = ConceptName.find_by_name('Echocardiography') #U/S - Echocardiography
   NeonatalBrain = ConceptName.find_by_name('Neonatal Brain') #Head
   ThyroidandParathyroidGlands = ConceptName.find_by_name('Thyroid and Parathyroid Glands') #U/S - Neck
   Obstetrics = ConceptName.find_by_name('Obstetrics, Fetal') #U/S - Obstetrics
   Pelvis = ConceptName.find_by_name('Female Pelvis, Gynaecology') #U/S - Pelvis
-  PowerDoppler = ConceptName.find_by_name('Peritheral Arterial and Venous Duplex') #U/S - Power Doppler
+  PowerDoppler = ConceptName.find_by_name('Peripheral arterial and venous duplex') #U/S - Power Doppler
   SmallPart = ConceptName.find_by_name('Prostate Gland, Scrotum and Penis') #U/S - Small part
 
   #----------- Thorax = ConceptName.find_by_name('Thorax') #U/S - Thorax
@@ -99,6 +99,7 @@
   Skull = ConceptName.find_by_name('Skull') #Xray - Skull under Upper Limb
   UpperLimb = ConceptName.find_by_name('Upper Limb') #Xray - Upper limb
   LowerLimb = ConceptName.find_by_name('Lower Limb') #Xray - Lower limb
+  Spine = ConceptName.find_by_name('Spine') #Ultrasound spine
   #....................................
 
 
@@ -138,7 +139,8 @@ EOF
   end
 
   def log_error(patient_id,message)
-    `echo "#{patient_id}: #{message}" >> #{Rails.root.join('log','migration_error.txt')}`
+    logger = Logger.new(Rails.root.join("log",'migration_error.txt')) #,3,5*1024*1024)
+    logger.error "#{patient_id}: #{message}"
   end
 
   def migrated_patient_demographics
@@ -162,7 +164,7 @@ EOF
 
       national_id = get_second_generation_id(pat.try(:Site_ID),pat.try(:Pat_ID))
       legacy_patient_id = pat.try(:Legacy_Pat_Num)
-      #next if migrated?(national_id,legacy_patient_id)
+      next if migrated?(national_id,legacy_patient_id)
 
       given_name = pat.try(:First_Name).capitalize rescue nil
       family_name = pat.try(:Last_Name).capitalize rescue nil
@@ -334,7 +336,8 @@ EOF
   end
  
   def migrated_radiology_study_data
-    records =  RadiologyStudy.where("Patient_Identifier IS NOT NULL").limit(100) 
+    records =  RadiologyStudy.where("Patient_Identifier IS NOT NULL")
+    #records = RadiologyStudy.where('Patient_Identifier IS NOT NULL').joins(:film_used).limit(10000)
     count = records.length
     migrated_count = 0
 
@@ -345,12 +348,16 @@ EOF
 
 EOF
 
-    puts "Migrating #{count} record(s) ........."  
+    puts "Migrating #{count} record(s) of Radiology Study data ........."  
     sleep(3)
 
     (records || []).each do |record|
       patient = get_openmrs_patient(record.try(:Patient_Identifier))
-      next if patient.blank?
+      if patient.blank?
+        logger = Logger.new(Rails.root.join("log",'radiology_migration_error.txt')) #,3,5*1024*1024)
+        logger.error "Could not find the patient with identifier: #{record.try(:Patient_Identifier)}"
+        next
+      end
       study_number = record.try(:Study_Number)
       study_datetime = (record.try(:Study_Date) + " " + record.try(:Study_Time))
       study_datetime = study_datetime.to_time.strftime('%Y-%m-%d %H:%M:%S') rescue nil
@@ -551,7 +558,7 @@ EOF
 
         obs = Observation.new()
         obs.person_id = encounter.patient_id
-        obs.concept_id = Detailed_examination_concept.id
+        obs.concept_id = Detailed_examination_concept.concept_id
         obs.creator = encounter.creator
         obs.value_coded = examination.last
         obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
