@@ -336,6 +336,7 @@ EOF
   end
  
   def migrated_radiology_study_data
+    migration_start_time = Time.now().strftime('%Y-%m-%d %H:%M:%S')
     records =  RadiologyStudy.where("Patient_Identifier IS NOT NULL")
     #records = RadiologyStudy.where('Patient_Identifier IS NOT NULL').joins(:film_used).limit(10000)
     count = records.length
@@ -447,8 +448,14 @@ EOF
         create_films_used_obs(films_used_encounter,order,film_size,films_used,film_wasted,date_used)
       end
 
-      puts "Migrated #{(migrated_count+=1)} of #{count} Radiology Study record(s) <<<"
+      puts "Migrated record #:#{study_number}. #{(migrated_count+=1)} of #{count} Radiology Study record(s) <<<"
     end
+
+    puts <<EOF
+
+
+    Started at #{migration_start_time} - finished at #{Time.now().strftime('%Y-%m-%d %H:%M:%S' )} .....
+EOF
 
   end
 
