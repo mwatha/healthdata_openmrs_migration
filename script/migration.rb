@@ -420,7 +420,7 @@ EOF
       obs.value_coded = radiology_test_type
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = examination.id
-      obs.obs_datetime = examination.date_created
+      obs.obs_datetime = examination.encounter_datetime
       obs.date_created = Time.now()
       obs.creator = examination.creator
       obs.save
@@ -546,7 +546,7 @@ EOF
         obs.value_coded = examination.first
         obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
         obs.encounter_id = encounter.id
-        obs.obs_datetime = encounter.date_created
+        obs.obs_datetime = encounter.encounter_datetime
         obs.date_created = Time.now()
         obs.creator = encounter.creator
         obs.save
@@ -558,7 +558,7 @@ EOF
         obs.value_coded = examination.first
         obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
         obs.encounter_id = encounter.id
-        obs.obs_datetime = encounter.date_created
+        obs.obs_datetime = encounter.encounter_datetime
         obs.date_created = Time.now()
         obs.creator = encounter.creator
         obs.save
@@ -570,7 +570,7 @@ EOF
         obs.value_coded = examination.last
         obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
         obs.encounter_id = encounter.id
-        obs.obs_datetime = encounter.date_created
+        obs.obs_datetime = encounter.encounter_datetime
         obs.date_created = Time.now()
         obs.creator = encounter.creator
         obs.save
@@ -585,7 +585,7 @@ EOF
       obs.value_text = referred_from
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
-      obs.obs_datetime = encounter.date_created
+      obs.obs_datetime = encounter.encounter_datetime
       obs.date_created = Time.now()
       obs.creator = encounter.creator
       obs.save
@@ -601,7 +601,7 @@ EOF
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
       #obs.order_id = order.id
-      obs.obs_datetime = encounter.date_created
+      obs.obs_datetime = encounter.encounter_datetime
       obs.date_created = Time.now()
       obs.creator = encounter.creator
       obs.save
@@ -615,7 +615,7 @@ EOF
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
       #obs.order_id = order.id
-      obs.obs_datetime = encounter.date_created
+      obs.obs_datetime = encounter.encounter_datetime
       obs.date_created = Time.now()
       obs.creator = encounter.creator
       obs.save
@@ -630,7 +630,7 @@ EOF
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
       #obs.order_id = order.id
-      obs.obs_datetime = encounter.date_created
+      obs.obs_datetime = encounter.encounter_datetime
       obs.date_created = Time.now()
       obs.creator = encounter.creator
       obs.save
@@ -644,7 +644,7 @@ EOF
       obs.uuid = ActiveRecord::Base.connection.select_one("SELECT UUID() as uuid")['uuid']
       obs.encounter_id = encounter.id
       #obs.order_id = order.id
-      obs.obs_datetime = encounter.date_created
+      obs.obs_datetime = encounter.encounter_datetime
       obs.date_created = Time.now()
       obs.creator = encounter.creator
       obs.save
@@ -660,7 +660,7 @@ EOF
     obs.encounter_id = encounter.id
     obs.order_id = order.id
     obs.creator = encounter.creator
-    obs.obs_datetime = encounter.date_created
+    obs.obs_datetime = encounter.encounter_datetime
     obs.date_created = Time.now()
     obs.save
   end
